@@ -1,0 +1,21 @@
+{
+  "name": "ratio-crop-studio",
+  "version": "2.0.0",
+  "private": true,
+  "description": "A local-first photo cropping studio with selectable aspect ratios and direct folder saving.",
+  "main": "app-server.js",
+  "scripts": {
+    "start": "node app-server.js"
+  },
+  "keywords": [
+    "photo-crop",
+    "aspect-ratio",
+    "canvas",
+    "local-first",
+    "nodejs"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,2892 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#e9e6dc">
+  <meta name="description" content="本地照片比例裁剪工具，支持 16:10、16:9、4:3、1:1 等常用画幅，可填写或浏览选择保存文件夹，直接把新图片写入电脑。">
+  <title>比例裁切工坊 · 本地照片裁剪</title>
+  <style>
+    :root {
+      --paper: #e9e6dc;
+      --paper-light: #f7f4ec;
+      --paper-bright: #fffdf7;
+      --ink: #171a16;
+      --ink-soft: #363b33;
+      --muted: #74786d;
+      --line: rgba(23, 26, 22, 0.13);
+      --line-strong: rgba(23, 26, 22, 0.22);
+      --stage: #0c0f0b;
+      --stage-soft: #141813;
+      --lime: #d9ff5e;
+      --lime-deep: #c4ee3f;
+      --coral: #ff6542;
+      --radius-xl: 26px;
+      --radius-lg: 19px;
+      --shadow: 0 24px 60px rgba(41, 40, 30, 0.14);
+      --font-sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", system-ui, sans-serif;
+      --font-mono: "SFMono-Regular", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { height: 100%; }
+
+    body {
+      margin: 0;
+      min-height: 100%;
+      overflow: hidden;
+      color: var(--ink);
+      background:
+        radial-gradient(ellipse at 8% -4%, rgba(255, 255, 255, 0.85), transparent 34%),
+        radial-gradient(ellipse at 98% 0%, rgba(217, 255, 94, 0.16), transparent 28%),
+        linear-gradient(135deg, #eae7dd 0%, #e5e1d6 100%);
+      font-family: var(--font-sans);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: 90;
+      pointer-events: none;
+      opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.7'/%3E%3C/svg%3E");
+      mix-blend-mode: multiply;
+    }
+
+    button, input, select { font: inherit; color: inherit; }
+    button { border: 0; padding: 0; background: none; cursor: pointer; }
+    button:disabled { cursor: not-allowed; }
+    button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+    ::selection { color: var(--ink); background: var(--lime); }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 1680px;
+      height: 100dvh;
+      margin: 0 auto;
+      padding: 18px 22px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    /* ---------- Header ---------- */
+    .topbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 0 3px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .brand-mark {
+      width: 45px;
+      height: 45px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      color: var(--paper-light);
+      background: var(--ink);
+      border-radius: 14px;
+      box-shadow: 0 7px 18px rgba(23, 26, 22, 0.18);
+    }
+
+    .brand-mark svg { display: block; width: 27px; height: 27px; }
+
+    .brand-copy { min-width: 0; }
+
+    .eyebrow {
+      margin: 0;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      line-height: 1.35;
+      text-transform: uppercase;
+    }
+
+    .brand-title {
+      margin: 2px 0 0;
+      font-size: 21px;
+      font-weight: 650;
+      letter-spacing: -0.045em;
+      line-height: 1.1;
+      white-space: nowrap;
+    }
+
+    .brand-title span {
+      color: var(--muted);
+      font-weight: 400;
+      letter-spacing: -0.02em;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .privacy {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 8px 12px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 253, 247, 0.48);
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .privacy-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #78a730;
+      box-shadow: 0 0 0 3px rgba(120, 167, 48, 0.12);
+    }
+
+    .privacy.is-server {
+      color: #5a682f;
+      border-color: rgba(112, 143, 45, 0.28);
+      background: rgba(217, 255, 94, 0.15);
+    }
+
+    .privacy.is-file {
+      color: #7b674a;
+      border-color: rgba(153, 116, 61, 0.2);
+      background: rgba(255, 213, 156, 0.13);
+    }
+
+    .privacy.is-file .privacy-dot {
+      background: #b68a4f;
+      box-shadow: 0 0 0 3px rgba(182, 138, 79, 0.12);
+    }
+
+    .ghost-btn {
+      height: 37px;
+      padding: 0 15px;
+      border: 1px solid var(--line-strong);
+      border-radius: 11px;
+      background: rgba(255, 253, 247, 0.56);
+      font-size: 12px;
+      font-weight: 600;
+      transition: background-color 160ms ease, border-color 160ms ease, opacity 160ms ease;
+    }
+
+    .ghost-btn:hover:not(:disabled) { background: var(--paper-bright); border-color: var(--ink); }
+    .ghost-btn:disabled { opacity: 0.36; }
+
+    /* ---------- Workspace ---------- */
+    .workspace {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 354px;
+      gap: 14px;
+    }
+
+    .stage-panel {
+      min-width: 0;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      overflow: hidden;
+      color: #d9ddcf;
+      background: var(--stage);
+      border: 1px solid rgba(255, 255, 255, 0.045);
+      border-radius: var(--radius-xl);
+      box-shadow: var(--shadow), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+    }
+
+    .stage-toolbar {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 46px;
+      padding: 2px 8px 9px;
+    }
+
+    .stage-file {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: rgba(217, 255, 94, 0.28);
+      box-shadow: 0 0 0 4px rgba(217, 255, 94, 0.05);
+      transition: background-color 200ms ease, box-shadow 200ms ease;
+    }
+
+    .has-image .status-dot {
+      background: var(--lime);
+      box-shadow: 0 0 0 4px rgba(217, 255, 94, 0.1), 0 0 16px rgba(217, 255, 94, 0.35);
+    }
+
+    .file-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+    .file-name {
+      max-width: min(42vw, 420px);
+      overflow: hidden;
+      color: #eef0e7;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .file-dims {
+      color: #747c6d;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.04em;
+      line-height: 1.4;
+    }
+
+    .stage-controls { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+    .ratio-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      height: 27px;
+      padding: 0 9px;
+      color: #cdd5bd;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 0.03em;
+    }
+
+    .ratio-badge svg { width: 13px; height: 9px; }
+
+    .stage-btn {
+      height: 27px;
+      padding: 0 9px;
+      color: #aeb5a5;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 10px;
+      transition: color 150ms ease, border-color 150ms ease, background-color 150ms ease;
+    }
+
+    .stage-btn:hover:not(:disabled) { color: var(--lime); border-color: rgba(217, 255, 94, 0.45); background: rgba(217, 255, 94, 0.05); }
+    .stage-btn:disabled { opacity: 0.3; }
+    .stage-btn:focus-visible { outline-color: var(--lime); }
+
+    .stage-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 0;
+      overflow: hidden;
+      border-radius: 18px;
+      background-color: #10130e;
+      background-image:
+        radial-gradient(circle at 50% 45%, rgba(217, 255, 94, 0.035), transparent 46%),
+        radial-gradient(rgba(255, 255, 255, 0.085) 0.65px, transparent 0.65px);
+      background-size: auto, 17px 17px;
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035), inset 0 22px 70px rgba(0, 0, 0, 0.2);
+      isolation: isolate;
+    }
+
+    #stageCanvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      outline: none;
+    }
+
+    #stageCanvas:focus-visible { box-shadow: inset 0 0 0 2px rgba(217, 255, 94, 0.62); }
+
+    .empty-state {
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 24px;
+      background:
+        radial-gradient(ellipse at 50% 46%, rgba(24, 30, 21, 0.9), rgba(16, 19, 14, 0.2) 52%, transparent 76%),
+        linear-gradient(180deg, rgba(16, 19, 14, 0.2), rgba(16, 19, 14, 0.62));
+      transition: opacity 240ms ease, visibility 240ms ease;
+    }
+
+    .has-image .empty-state { opacity: 0; visibility: hidden; pointer-events: none; }
+
+    .drop-card {
+      width: min(420px, calc(100% - 12px));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+      padding: 31px 24px 27px;
+      border: 1px dashed rgba(255, 255, 255, 0.22);
+      border-radius: 21px;
+      background: rgba(255, 255, 255, 0.025);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+      cursor: pointer;
+      transition: border-color 180ms ease, background-color 180ms ease, transform 180ms ease;
+    }
+
+    .drop-card:hover, .drop-card:focus-visible {
+      border-color: rgba(217, 255, 94, 0.64);
+      background: rgba(217, 255, 94, 0.035);
+      transform: translateY(-2px);
+    }
+
+    .drop-card:focus-visible { outline-color: var(--lime); }
+
+    .drop-icon {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      margin-bottom: 8px;
+      color: var(--lime);
+      border: 1px solid rgba(217, 255, 94, 0.22);
+      border-radius: 16px;
+      background: rgba(217, 255, 94, 0.055);
+    }
+
+    .drop-icon svg { width: 27px; height: 27px; }
+
+    .drop-title { color: #f2f3ec; font-size: 16px; font-weight: 600; letter-spacing: -0.015em; }
+
+    .drop-sub { color: #9ba291; font-size: 12px; }
+    .drop-sub span { color: var(--lime); border-bottom: 1px solid rgba(217, 255, 94, 0.42); }
+
+    .drop-meta {
+      margin-top: 12px;
+      color: #5e6759;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.08em;
+    }
+
+    .demo-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 3px;
+      color: #7e8775;
+      font-size: 10px;
+      transition: color 150ms ease;
+    }
+
+    .demo-btn span { color: #bac2ad; border-bottom: 1px solid rgba(255, 255, 255, 0.17); }
+    .demo-btn:hover { color: var(--lime); }
+    .demo-btn:hover span { color: var(--lime); border-bottom-color: rgba(217, 255, 94, 0.45); }
+
+    .stage-footer {
+      flex: 0 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      min-height: 37px;
+      padding: 11px 9px 1px;
+      color: #727a6b;
+      font-size: 10px;
+    }
+
+    .hint { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; }
+
+    .hint kbd {
+      display: inline-flex;
+      align-items: center;
+      min-height: 18px;
+      padding: 1px 5px;
+      color: #9ba392;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 5px;
+      background: rgba(255, 255, 255, 0.035);
+      font-family: var(--font-mono);
+      font-size: 8px;
+      letter-spacing: 0.01em;
+    }
+
+    .coords {
+      flex: 0 0 auto;
+      overflow: hidden;
+      color: #7e8678;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.035em;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ---------- Sidebar ---------- */
+    .sidebar {
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 22px 21px 19px;
+      overflow: hidden;
+      background: linear-gradient(160deg, var(--paper-light) 0%, #f1eee4 100%);
+      border: 1px solid rgba(23, 26, 22, 0.11);
+      border-radius: var(--radius-xl);
+      box-shadow: 0 18px 44px rgba(46, 44, 33, 0.11), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    }
+
+    .side-head { flex: 0 0 auto; }
+
+    .side-head h2 {
+      margin: 7px 0 6px;
+      font-size: clamp(23px, 2.2vw, 28px);
+      font-weight: 650;
+      letter-spacing: -0.055em;
+      line-height: 1.18;
+    }
+
+    .side-head > p:last-child {
+      margin: 0;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .side-body {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin: 0 -4px;
+      padding: 14px 4px 0;
+      overflow-y: auto;
+      scrollbar-width: none;
+    }
+
+    .side-body::-webkit-scrollbar { width: 0; height: 0; }
+
+    .panel {
+      flex: 0 0 auto;
+      padding: 14px;
+      border: 1px solid rgba(23, 26, 22, 0.1);
+      border-radius: 16px;
+      background: rgba(255, 253, 247, 0.58);
+    }
+
+    .panel-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 12px;
+      color: var(--ink-soft);
+      font-size: 11px;
+      font-weight: 650;
+      letter-spacing: 0.03em;
+    }
+
+    .step {
+      display: inline-grid;
+      place-items: center;
+      width: 19px;
+      height: 19px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      font-weight: 500;
+    }
+
+    .size-row {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 9px;
+    }
+
+    .size-cell { min-width: 0; }
+
+    .size-number {
+      overflow: hidden;
+      color: var(--ink);
+      font-family: var(--font-mono);
+      font-size: clamp(26px, 2.25vw, 33px);
+      font-weight: 500;
+      letter-spacing: -0.075em;
+      line-height: 1.02;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .size-unit {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 9px;
+      letter-spacing: 0.04em;
+    }
+
+    .size-times {
+      align-self: start;
+      margin-top: 4px;
+      color: #a3a69c;
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 300;
+    }
+
+    .ratio-note {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 13px;
+      padding-top: 10px;
+      color: var(--muted);
+      border-top: 1px solid rgba(23, 26, 22, 0.08);
+      font-size: 9px;
+      letter-spacing: 0.02em;
+    }
+
+    .ratio-glyph {
+      position: relative;
+      width: 24px;
+      height: 14px;
+      flex: 0 0 auto;
+      border: 1px solid rgba(23, 26, 22, 0.34);
+      border-radius: 2px;
+    }
+
+    .ratio-glyph::before, .ratio-glyph::after {
+      content: "";
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      border-color: var(--lime-deep);
+      border-style: solid;
+    }
+
+    .ratio-glyph::before { top: -2px; left: -2px; border-width: 1px 0 0 1px; }
+    .ratio-glyph::after { right: -2px; bottom: -2px; border-width: 0 1px 1px 0; }
+
+    .panel-hint {
+      margin-left: auto;
+      color: #989b91;
+      font-family: var(--font-sans);
+      font-size: 8px;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+
+    .ratio-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 6px;
+    }
+
+    .ratio-option {
+      min-height: 49px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 5px 2px;
+      color: var(--muted);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.45);
+      font-family: var(--font-mono);
+      font-size: 8.5px;
+      line-height: 1;
+      transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease, transform 150ms ease;
+    }
+
+    .ratio-option:hover {
+      color: var(--ink);
+      border-color: var(--line-strong);
+      background: var(--paper-bright);
+      transform: translateY(-1px);
+    }
+
+    .ratio-option[aria-pressed="true"] {
+      color: var(--paper-bright);
+      border-color: var(--ink);
+      background: var(--ink);
+      box-shadow: 0 5px 12px rgba(23, 26, 22, 0.13);
+    }
+
+    .ratio-option:focus-visible { outline-color: var(--ink); outline-offset: 1px; }
+
+    .ratio-mini {
+      width: 27px;
+      height: 21px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+    }
+
+    .ratio-mini i {
+      display: block;
+      width: var(--bw);
+      height: var(--bh);
+      border: 1px solid currentColor;
+      border-radius: 1.5px;
+      opacity: 0.65;
+      transition: border-color 150ms ease, opacity 150ms ease;
+    }
+
+    .ratio-option[aria-pressed="true"] .ratio-mini i {
+      border-color: var(--lime);
+      opacity: 1;
+      box-shadow: 0 0 0 1px rgba(217, 255, 94, 0.1);
+    }
+
+    .mode-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+      padding: 3px 6px;
+      color: #8b8e84;
+      border: 1px solid rgba(23, 26, 22, 0.1);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.5);
+      font-size: 7.5px;
+      font-weight: 500;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .mode-chip::before {
+      content: "";
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #a6a99e;
+    }
+
+    .mode-chip.is-server {
+      color: #566a21;
+      border-color: rgba(111, 145, 39, 0.25);
+      background: rgba(217, 255, 94, 0.22);
+    }
+
+    .mode-chip.is-server::before { background: #7ea32e; }
+
+    .mode-chip.is-browser {
+      color: #866238;
+      border-color: rgba(166, 116, 54, 0.22);
+      background: rgba(255, 193, 112, 0.13);
+    }
+
+    .mode-chip.is-browser::before { background: #b18045; }
+
+    .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+    .field > span {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+    }
+
+    .field > span b {
+      color: var(--ink-soft);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+    }
+
+    .filename-wrap {
+      display: flex;
+      align-items: center;
+      height: 40px;
+      padding: 0 11px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.66);
+      transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+    }
+
+    .filename-wrap:focus-within {
+      border-color: var(--ink);
+      background: var(--paper-bright);
+      box-shadow: 0 0 0 3px rgba(217, 255, 94, 0.3);
+    }
+
+    .filename-wrap input {
+      width: 100%;
+      min-width: 0;
+      padding: 0;
+      color: var(--ink);
+      border: 0;
+      outline: 0;
+      background: transparent;
+      font-size: 12px;
+    }
+
+    .filename-wrap input::placeholder { color: #a2a59c; }
+
+    .extension {
+      flex: 0 0 auto;
+      padding-left: 6px;
+      color: #9a9d94;
+      font-family: var(--font-mono);
+      font-size: 10px;
+    }
+
+    .field-help {
+      color: #96998f;
+      font-size: 8.5px;
+      line-height: 1.45;
+    }
+
+    .path-field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 11px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(23, 26, 22, 0.08);
+    }
+
+    .path-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+    }
+
+    .path-row {
+      display: flex;
+      align-items: stretch;
+      gap: 6px;
+    }
+
+    #savePath {
+      flex: 1 1 auto;
+      width: 100%;
+      min-width: 0;
+      height: 36px;
+      padding: 0 9px;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      outline: 0;
+      background: rgba(255, 255, 255, 0.66);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: -0.02em;
+      transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+    }
+
+    #savePath::placeholder { color: #a2a59c; font-family: var(--font-sans); letter-spacing: 0; }
+    #savePath:focus { border-color: var(--ink); background: var(--paper-bright); box-shadow: 0 0 0 3px rgba(217, 255, 94, 0.3); }
+    #savePath:read-only { color: #8f9288; background: rgba(255, 255, 255, 0.38); }
+    #savePath[aria-invalid="true"] { border-color: var(--coral); box-shadow: 0 0 0 3px rgba(255, 101, 66, 0.12); }
+
+    .path-browse {
+      flex: 0 0 auto;
+      height: 36px;
+      padding: 0 10px;
+      color: var(--ink-soft);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.66);
+      font-size: 9px;
+      font-weight: 600;
+      white-space: nowrap;
+      transition: background-color 150ms ease, border-color 150ms ease, opacity 150ms ease;
+    }
+
+    .path-browse:hover:not(:disabled) { border-color: var(--ink); background: var(--paper-bright); }
+    .path-browse:disabled { opacity: 0.45; }
+
+    .path-field.is-file-mode #savePath { background: rgba(255, 255, 255, 0.38); }
+    .path-field.is-file-mode .field-help { color: #936d37; }
+    .path-field.is-busy #savePath, .path-field.is-busy .path-browse { opacity: 0.62; }
+
+    .save-result {
+      margin-top: 10px;
+      padding: 9px 10px;
+      border: 1px solid rgba(105, 139, 35, 0.24);
+      border-radius: 9px;
+      background: rgba(217, 255, 94, 0.14);
+    }
+
+    .save-result[hidden] { display: none; }
+
+    .save-result-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      color: #5d6e2f;
+      font-size: 8.5px;
+      font-weight: 650;
+      letter-spacing: 0.03em;
+    }
+
+    .save-result-head > span::before {
+      content: "✓";
+      margin-right: 4px;
+      font-family: var(--font-mono);
+    }
+
+    #saveResultPath {
+      max-height: 48px;
+      margin: 4px 0 0;
+      overflow: auto;
+      color: #5f6754;
+      font-family: var(--font-mono);
+      font-size: 8px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+
+    .text-btn {
+      flex: 0 0 auto;
+      color: var(--ink-soft);
+      border-bottom: 1px solid rgba(23, 26, 22, 0.25);
+      font-size: 8px;
+      font-weight: 600;
+      line-height: 1.35;
+    }
+
+    .text-btn:hover { border-bottom-color: var(--ink); }
+    .text-btn[hidden] { display: none; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+      gap: 9px;
+      margin-top: 10px;
+    }
+
+    select {
+      width: 100%;
+      height: 38px;
+      padding: 0 9px;
+      color: var(--ink);
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      outline: 0;
+      background-color: rgba(255, 255, 255, 0.66);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='m1 1 4 4 4-4' fill='none' stroke='%2374786d' stroke-width='1.3' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 9px center;
+      appearance: none;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: border-color 150ms ease, box-shadow 150ms ease;
+    }
+
+    select:focus { border-color: var(--ink); box-shadow: 0 0 0 3px rgba(217, 255, 94, 0.3); }
+
+    .range-wrap {
+      display: flex;
+      align-items: center;
+      height: 38px;
+      padding: 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.66);
+      transition: opacity 150ms ease;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      margin: 0;
+      accent-color: var(--ink);
+      cursor: pointer;
+    }
+
+    .quality-field.is-disabled { opacity: 0.44; }
+    .quality-field.is-disabled input { cursor: not-allowed; }
+
+    .output-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 11px;
+      padding-top: 9px;
+      color: var(--muted);
+      border-top: 1px solid rgba(23, 26, 22, 0.08);
+      font-size: 9px;
+    }
+
+    .output-row strong {
+      color: var(--ink-soft);
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 500;
+    }
+
+    .save-btn {
+      flex: 0 0 auto;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 0 11px 0 18px;
+      color: #f5f2e8;
+      border-radius: 14px;
+      background: var(--ink);
+      box-shadow: 0 12px 24px rgba(23, 26, 22, 0.18);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      transition: transform 160ms ease, background-color 160ms ease, opacity 160ms ease, box-shadow 160ms ease;
+    }
+
+    .save-btn:hover:not(:disabled) { transform: translateY(-1px); background: #242a21; box-shadow: 0 15px 28px rgba(23, 26, 22, 0.22); }
+    .save-btn:active:not(:disabled) { transform: translateY(0); }
+    .save-btn:disabled { opacity: 0.34; box-shadow: none; }
+    .save-btn:focus-visible { outline-color: var(--ink); }
+
+    .save-arrow {
+      width: 30px;
+      height: 30px;
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      color: var(--ink);
+      border-radius: 9px;
+      background: var(--lime);
+      transition: transform 180ms ease, background-color 180ms ease;
+    }
+
+    .save-arrow svg { width: 14px; height: 14px; }
+    .save-btn:hover:not(:disabled) .save-arrow { transform: translateY(2px); background: #e4ff86; }
+
+    .is-saving .save-arrow svg { animation: bob 700ms ease-in-out infinite alternate; }
+
+    @keyframes bob { from { transform: translateY(-2px); } to { transform: translateY(3px); } }
+
+    .sidebar > .save-btn { margin-top: 10px; }
+
+    .save-note {
+      flex: 0 0 auto;
+      margin: 7px 0 0;
+      color: #8e9187;
+      font-size: 8.5px;
+      letter-spacing: 0.02em;
+      line-height: 1.5;
+      text-align: center;
+    }
+
+    /* ---------- Overlays ---------- */
+    .toast {
+      position: fixed;
+      right: 24px;
+      bottom: 24px;
+      z-index: 80;
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      max-width: min(460px, calc(100vw - 32px));
+      padding: 12px 16px;
+      color: #f2f3ec;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      border-radius: 12px;
+      background: rgba(18, 22, 16, 0.94);
+      box-shadow: 0 16px 38px rgba(23, 26, 22, 0.22);
+      font-size: 11px;
+      line-height: 1.45;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(12px);
+      transition: opacity 200ms ease, transform 200ms ease, visibility 200ms ease;
+      backdrop-filter: blur(14px);
+    }
+
+    .toast::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: var(--lime);
+      box-shadow: 0 0 8px rgba(217, 255, 94, 0.35);
+    }
+
+    .toast.is-visible { opacity: 1; visibility: visible; transform: translateY(0); }
+    .toast.is-error::before { background: var(--coral); box-shadow: 0 0 8px rgba(255, 101, 66, 0.35); }
+
+    .drop-overlay {
+      position: fixed;
+      inset: 12px;
+      z-index: 70;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--lime);
+      border: 2px dashed rgba(217, 255, 94, 0.72);
+      border-radius: 28px;
+      background: rgba(12, 15, 11, 0.84);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: scale(0.995);
+      transition: opacity 160ms ease, visibility 160ms ease, transform 160ms ease;
+      backdrop-filter: blur(14px);
+    }
+
+    .drop-overlay.is-active { opacity: 1; visibility: visible; transform: scale(1); }
+    .drop-overlay svg { width: 42px; height: 42px; }
+    .drop-overlay strong { color: #f4f5ee; font-size: 21px; font-weight: 600; letter-spacing: -0.03em; }
+    .drop-overlay span { color: #929b88; font-size: 11px; }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 1180px) {
+      .workspace { grid-template-columns: minmax(0, 1fr) 326px; }
+      .sidebar { padding: 19px 17px 16px; }
+      .side-head h2 { font-size: 23px; }
+      .privacy { padding: 8px 10px; font-size: 10px; }
+      .size-number { font-size: 27px; }
+    }
+
+    @media (max-height: 820px) and (min-width: 861px) {
+      .app { padding: 13px 18px 15px; gap: 10px; }
+      .workspace { gap: 10px; }
+      .brand-mark { width: 40px; height: 40px; border-radius: 12px; }
+      .brand-title { font-size: 19px; }
+      .stage-panel { padding: 8px; }
+      .stage-toolbar { min-height: 40px; padding-bottom: 7px; }
+      .stage-footer { min-height: 31px; padding-top: 8px; }
+      .sidebar { padding: 16px 15px 14px; }
+      .side-head h2 { font-size: 21px; margin: 4px 0; }
+      .side-head > p:last-child { display: none; }
+      .side-body { gap: 8px; padding-top: 10px; }
+      .panel { padding: 11px 12px; }
+      .panel-label { margin-bottom: 9px; }
+      .size-number { font-size: 24px; }
+      .size-unit { margin-top: 3px; }
+      .ratio-note { margin-top: 8px; padding-top: 8px; }
+      .ratio-option { min-height: 41px; gap: 2px; font-size: 7.5px; }
+      .ratio-mini { width: 24px; height: 17px; }
+      .panel-hint { display: none; }
+      .filename-wrap { height: 36px; }
+      .two-col { margin-top: 8px; }
+      select, .range-wrap { height: 34px; }
+      .path-field { margin-top: 8px; padding-top: 8px; }
+      #savePath, .path-browse { height: 32px; }
+      .sidebar > .save-btn { margin-top: 8px; }
+      .save-btn { min-height: 48px; }
+      .save-note { margin-top: 5px; font-size: 8px; }
+    }
+
+    @media (max-width: 860px) {
+      body { overflow: auto; }
+      .app { height: auto; min-height: 100dvh; padding: 13px; gap: 11px; }
+      .topbar { align-items: center; }
+      .privacy { display: none; }
+      .brand-mark { width: 40px; height: 40px; border-radius: 12px; }
+      .brand-title { font-size: 19px; }
+      .workspace { grid-template-columns: minmax(0, 1fr); gap: 11px; }
+      .stage-panel { border-radius: 22px; }
+      .stage-wrap { flex: none; height: min(62vw, 430px); min-height: 310px; border-radius: 15px; }
+      .stage-footer { flex-wrap: wrap; }
+      .sidebar { border-radius: 22px; padding: 18px 17px 16px; overflow: visible; }
+      .side-body { overflow: visible; }
+      .size-number { font-size: 32px; }
+      .file-name { max-width: 54vw; }
+    }
+
+    @media (max-width: 520px) {
+      .app { padding: 10px; gap: 9px; }
+      .top-actions .ghost-btn { height: 34px; padding: 0 11px; font-size: 10px; }
+      .brand { gap: 9px; }
+      .brand-mark { width: 37px; height: 37px; border-radius: 11px; }
+      .brand-mark svg { width: 23px; height: 23px; }
+      .brand-title { font-size: 17px; }
+      .brand-title span { display: none; }
+      .eyebrow { font-size: 8px; }
+      .stage-panel { padding: 7px; }
+      .stage-toolbar { padding: 3px 5px 7px; gap: 7px; }
+      .stage-controls { gap: 5px; }
+      .ratio-badge { padding: 0 6px; font-size: 9px; }
+      .stage-btn { padding: 0 7px; font-size: 9px; }
+      .file-dims { display: none; }
+      .stage-wrap { height: 67vw; min-height: 270px; }
+      .stage-footer { padding: 8px 5px 1px; gap: 7px; }
+      .hint kbd { display: none; }
+      .hint { font-size: 9px; }
+      .coords { display: none; }
+      .drop-card { padding: 24px 16px 21px; }
+      .drop-title { font-size: 14px; }
+      .drop-icon { width: 48px; height: 48px; }
+      .sidebar { padding: 16px 13px 14px; }
+      .side-head h2 { font-size: 22px; }
+      .side-body { margin: 0; padding: 12px 0 0; }
+      .panel { padding: 13px; }
+      .ratio-grid { gap: 5px; }
+      .ratio-option { min-height: 50px; }
+      .path-row { gap: 5px; }
+      .path-browse { padding: 0 8px; }
+      .save-btn { min-height: 50px; }
+      .toast { left: 16px; right: 16px; bottom: 16px; max-width: none; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        scroll-behavior: auto !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 28 28" fill="none">
+            <rect x="3.75" y="8.1" width="20.5" height="11.53" stroke="currentColor" stroke-width="1.1" opacity=".55"/>
+            <path d="M3.75 12V8.1h3.9M24.25 16v3.63h-3.9M3.75 16v3.63h3.9M24.25 12V8.1h-3.9" stroke="#D9FF5E" stroke-width="1.8"/>
+            <circle cx="14" cy="13.87" r="1.45" fill="#D9FF5E"/>
+          </svg>
+        </div>
+        <div class="brand-copy">
+          <p class="eyebrow">Local crop studio · No upload</p>
+          <h1 class="brand-title">比例裁切 <span>工坊</span></h1>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="privacy" id="modeBadge">
+          <span class="privacy-dot" aria-hidden="true"></span>
+          <span id="modeText">本地处理 · 图片不会上传</span>
+        </div>
+        <button type="button" class="ghost-btn" id="replaceBtn" disabled>更换照片</button>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="stage-panel" aria-label="照片裁剪工作区">
+        <div class="stage-toolbar">
+          <div class="stage-file">
+            <span class="status-dot" aria-hidden="true"></span>
+            <div class="file-copy">
+              <span class="file-name" id="fileName">等待选择照片</span>
+              <span class="file-dims" id="fileDims">拖动画面上的裁剪框开始构图</span>
+            </div>
+          </div>
+          <div class="stage-controls">
+            <span class="ratio-badge" id="ratioBadge" title="当前裁剪比例">
+              <svg viewBox="0 0 13 9" fill="none" aria-hidden="true">
+                <rect x=".5" y=".5" width="12" height="8" rx="1" stroke="currentColor"/>
+                <path d="M1 1h3M12 8H9" stroke="#D9FF5E" stroke-width="1.5"/>
+              </svg>
+              <span id="ratioBadgeText">16 : 10</span>
+            </span>
+            <button type="button" class="stage-btn" id="resetBtn" disabled>重置裁剪</button>
+          </div>
+        </div>
+
+        <div class="stage-wrap" id="stageWrap">
+          <canvas id="stageCanvas" width="800" height="500" tabindex="0" aria-label="照片裁剪画布。拖动裁剪框移动位置，拖拽四角调整大小，方向键微调位置。"></canvas>
+
+          <div class="empty-state" id="emptyState">
+            <div class="drop-card" id="dropCard" role="button" tabindex="0" aria-label="点击选择一张照片">
+              <div class="drop-icon" aria-hidden="true">
+                <svg viewBox="0 0 32 32" fill="none">
+                  <rect x="4.5" y="7" width="23" height="18" rx="2.5" stroke="currentColor" stroke-width="1.3" opacity=".7"/>
+                  <circle cx="11.5" cy="13" r="2.3" stroke="currentColor" stroke-width="1.3"/>
+                  <path d="m5 22 6.2-6.1a2.2 2.2 0 0 1 3.1 0l3.1 3.1 2.1-2.1a2.2 2.2 0 0 1 3.1 0L27 21.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M4.5 5v5M4.5 5h5M27.5 27v-5M27.5 27h-5" stroke="#D9FF5E" stroke-width="1.7" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div class="drop-title">把照片拖到这里</div>
+              <div class="drop-sub">或 <span>点击选择文件</span></div>
+              <div class="drop-meta">JPG · PNG · WEBP · AVIF</div>
+            </div>
+            <button type="button" class="demo-btn" id="demoBtn">
+              没有照片？<span>载入示例图</span>
+              <svg viewBox="0 0 12 12" width="10" height="10" fill="none" aria-hidden="true"><path d="M3 9 9 3M4 3h5v5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+          </div>
+
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/avif,image/gif,image/bmp" hidden>
+        </div>
+
+        <div class="stage-footer">
+          <span class="hint">
+            <kbd>拖动</kbd> 移动
+            <kbd>四角</kbd> 缩放
+            <kbd>方向键</kbd> 微调
+          </span>
+          <span class="coords" id="cropCoords">16 : 10 · 比例已锁定</span>
+        </div>
+      </section>
+
+      <aside class="sidebar" aria-label="导出设置">
+        <div class="side-head">
+          <p class="eyebrow">Compose &amp; export</p>
+          <h2>选好画幅，裁好就存。</h2>
+          <p>常用比例自由切换，直接把新图片保存到你指定的文件夹。</p>
+        </div>
+
+        <div class="side-body">
+          <section class="panel ratio-panel">
+            <div class="panel-label">
+              <span class="step">01</span>画幅比例
+              <span class="panel-hint">默认 16:10</span>
+            </div>
+            <div class="ratio-grid" id="ratioGrid" role="group" aria-label="选择裁剪画幅比例">
+              <button type="button" class="ratio-option" data-ratio="16:10" aria-pressed="true" style="--bw:24px;--bh:15px">
+                <span class="ratio-mini" aria-hidden="true"><i></i></span><span>16:10</span>
+              </button>
+              <button type="button" class="ratio-option" data-ratio="16:9" aria-pressed="false" style="--bw:24px;--bh:13.5px">
+                <span class="ratio-mini" aria-hidden="true"><i></i></span><span>16:9</span>
+              </button>
+              <button type="button" class="ratio-option" data-ratio="3:2" aria-pressed="false" style="--bw:24px;--bh:16px">
+                <span class="ratio-mini" aria-hidden="true"><i></i></span><span>3:2</span>
+              </button>
+              <button type="button" class="ratio-option" data-ratio="4:3" aria-pressed="false" style="--bw:24px;--bh:18px">
+                <span class="ratio-mini" aria-hidden="true"><i></i></span><span>4:3</span>
+              </button>
+              <button type="button" class="ratio-option" data-ratio="1:1" aria-pressed="false" style="--bw:18px;--bh:18px">
+                <span class="ratio-mini" aria-hidden="true"><i></i></span><span>1:1</span>
+              </button>
+              <button type="button" class="ratio-option" data-ratio="4:5" aria-pressed="false" style="--bw:16px;--bh:20px">
+                <span class="ratio-mini" aria-hidden="true"><i></i></span><span>4:5</span>
+              </button>
+              <button type="button" class="ratio-option" data-ratio="3:4" aria-pressed="false" style="--bw:15px;--bh:20px">
+                <span class="ratio-mini" aria-hidden="true"><i></i></span><span>3:4</span>
+              </button>
+              <button type="button" class="ratio-option" data-ratio="9:16" aria-pressed="false" style="--bw:12px;--bh:21px">
+                <span class="ratio-mini" aria-hidden="true"><i></i></span><span>9:16</span>
+              </button>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-label"><span class="step">02</span>裁剪尺寸</div>
+            <div class="size-row">
+              <div class="size-cell">
+                <div class="size-number" id="cropW">—</div>
+                <div class="size-unit">宽 · px</div>
+              </div>
+              <span class="size-times" aria-hidden="true">×</span>
+              <div class="size-cell">
+                <div class="size-number" id="cropH">—</div>
+                <div class="size-unit">高 · px</div>
+              </div>
+            </div>
+            <div class="ratio-note">
+              <span class="ratio-glyph" aria-hidden="true"></span>
+              <span id="ratioNoteText">锁定 16:10 · 拖动四角调整大小</span>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-label">
+              <span class="step">03</span>保存设置
+              <span class="mode-chip" id="saveModeChip">检测中</span>
+            </div>
+
+            <label class="field" for="filename">
+              <span>文件名</span>
+              <div class="filename-wrap">
+                <input type="text" id="filename" maxlength="80" placeholder="给新图片起个名字" autocomplete="off" spellcheck="false">
+                <span class="extension" id="extension">.jpg</span>
+              </div>
+            </label>
+            <div class="field-help">无需输入后缀，格式会自动补全。</div>
+
+            <div class="two-col">
+              <label class="field" for="format">
+                <span>格式</span>
+                <select id="format">
+                  <option value="jpeg">JPG</option>
+                  <option value="png">PNG</option>
+                  <option value="webp">WebP</option>
+                </select>
+              </label>
+              <label class="field quality-field" id="qualityField" for="quality">
+                <span>画质 <b id="qualityValue">92%</b></span>
+                <div class="range-wrap">
+                  <input type="range" id="quality" min="40" max="100" value="92" step="1">
+                </div>
+              </label>
+            </div>
+
+            <div class="output-row">
+              <span>导出尺寸</span>
+              <strong id="outputDims">—</strong>
+            </div>
+
+            <div class="path-field" id="pathField">
+              <span class="path-label" id="pathLabel">保存文件夹</span>
+              <div class="path-row">
+                <input type="text" id="savePath" maxlength="260" placeholder="例如 C:\Users\你\Pictures\裁切" autocomplete="off" spellcheck="false" aria-labelledby="pathLabel" readonly>
+                <button type="button" class="path-browse" id="browseBtn">浏览…</button>
+              </div>
+              <div class="field-help" id="pathHelp">正在检测本地保存方式…</div>
+            </div>
+
+            <div class="save-result" id="saveResult" hidden>
+              <div class="save-result-head">
+                <span>已保存到本地</span>
+                <button type="button" class="text-btn" id="openFolderBtn" hidden>打开文件夹 ↗</button>
+              </div>
+              <p id="saveResultPath"></p>
+            </div>
+          </section>
+        </div>
+
+        <button type="button" class="save-btn" id="saveBtn" disabled>
+          <span id="saveLabel">保存到指定位置</span>
+          <span class="save-arrow" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none"><path d="M8 2.5v10M3.8 8.4 8 12.6l4.2-4.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </button>
+        <p class="save-note">直接写入本地文件夹 · 原图保持不变</p>
+      </aside>
+    </main>
+  </div>
+
+  <div class="drop-overlay" id="dropOverlay" aria-hidden="true">
+    <svg viewBox="0 0 32 32" fill="none">
+      <rect x="4" y="7" width="24" height="18" rx="2.5" stroke="currentColor" stroke-width="1.3" opacity=".65"/>
+      <path d="M16 19V9m-4.2 4.2L16 9l4.2 4.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M7 22.5h18" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" opacity=".4"/>
+    </svg>
+    <strong>松手，载入照片</strong>
+    <span>照片只在这台设备上处理</span>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const DEFAULT_RATIO_KEY = '16:10';
+      const RATIO_OPTIONS = {
+        '16:10': { w: 16, h: 10 },
+        '16:9': { w: 16, h: 9 },
+        '3:2': { w: 3, h: 2 },
+        '4:3': { w: 4, h: 3 },
+        '1:1': { w: 1, h: 1 },
+        '4:5': { w: 4, h: 5 },
+        '3:4': { w: 3, h: 4 },
+        '9:16': { w: 9, h: 16 }
+      };
+      const MIN_CROP_SCREEN = 76;
+      const MAX_EXPORT_SIDE = 8192;
+      const MAX_EXPORT_PIXELS = 40000000;
+      const HANDLE_HIT = 27;
+
+      let activeRatioKey = DEFAULT_RATIO_KEY;
+
+      function activeRatio() {
+        return RATIO_OPTIONS[activeRatioKey] || RATIO_OPTIONS[DEFAULT_RATIO_KEY];
+      }
+
+      function activeRatioValue() {
+        const ratio = activeRatio();
+        return ratio.w / ratio.h;
+      }
+
+      function ratioLabel(key = activeRatioKey) {
+        return key.replace(':', ' : ');
+      }
+
+      const el = {
+        canvas: document.getElementById('stageCanvas'),
+        wrap: document.getElementById('stageWrap'),
+        dropCard: document.getElementById('dropCard'),
+        emptyState: document.getElementById('emptyState'),
+        demoBtn: document.getElementById('demoBtn'),
+        fileInput: document.getElementById('fileInput'),
+        replaceBtn: document.getElementById('replaceBtn'),
+        resetBtn: document.getElementById('resetBtn'),
+        fileName: document.getElementById('fileName'),
+        fileDims: document.getElementById('fileDims'),
+        cropW: document.getElementById('cropW'),
+        cropH: document.getElementById('cropH'),
+        cropCoords: document.getElementById('cropCoords'),
+        ratioBadge: document.getElementById('ratioBadge'),
+        ratioBadgeText: document.getElementById('ratioBadgeText'),
+        ratioGrid: document.getElementById('ratioGrid'),
+        ratioNoteText: document.getElementById('ratioNoteText'),
+        modeBadge: document.getElementById('modeBadge'),
+        modeText: document.getElementById('modeText'),
+        filename: document.getElementById('filename'),
+        extension: document.getElementById('extension'),
+        format: document.getElementById('format'),
+        quality: document.getElementById('quality'),
+        qualityField: document.getElementById('qualityField'),
+        qualityValue: document.getElementById('qualityValue'),
+        outputDims: document.getElementById('outputDims'),
+        saveModeChip: document.getElementById('saveModeChip'),
+        pathField: document.getElementById('pathField'),
+        pathLabel: document.getElementById('pathLabel'),
+        savePath: document.getElementById('savePath'),
+        browseBtn: document.getElementById('browseBtn'),
+        pathHelp: document.getElementById('pathHelp'),
+        saveResult: document.getElementById('saveResult'),
+        saveResultPath: document.getElementById('saveResultPath'),
+        openFolderBtn: document.getElementById('openFolderBtn'),
+        saveBtn: document.getElementById('saveBtn'),
+        saveLabel: document.getElementById('saveLabel'),
+        toast: document.getElementById('toast'),
+        dropOverlay: document.getElementById('dropOverlay')
+      };
+
+      const ctx = el.canvas.getContext('2d');
+      if (!ctx) {
+        showToast('当前浏览器无法创建画布，请使用新版浏览器打开。', 'error');
+        return;
+      }
+
+      const state = {
+        image: null,
+        imageW: 0,
+        imageH: 0,
+        displayName: '',
+        baseName: '照片',
+        isDemo: false,
+        viewW: 0,
+        viewH: 0,
+        display: { x: 0, y: 0, w: 0, h: 0 },
+        scale: 1,
+        crop: null,
+        drag: null,
+        loading: false,
+        saving: false,
+        browsing: false,
+        autoFilename: ''
+      };
+
+      const saveMode = {
+        kind: 'detecting', // server | fs-directory | fs-save | download
+        server: false,
+        directoryHandle: null,
+        directoryName: '',
+        lastSavedPath: '',
+        lastSavedDir: '',
+        defaultDir: '',
+        browserSaveHandle: null
+      };
+
+      let renderQueued = false;
+      let toastTimer = 0;
+      let dragDepth = 0;
+
+      const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+      const round = (value) => Math.round(value);
+      const formatNumber = (value) => round(value).toLocaleString('zh-CN');
+
+      /* ---------- Toast ---------- */
+      function showToast(message, type = 'default') {
+        window.clearTimeout(toastTimer);
+        el.toast.textContent = message;
+        el.toast.classList.toggle('is-error', type === 'error');
+        el.toast.classList.add('is-visible');
+        toastTimer = window.setTimeout(() => {
+          el.toast.classList.remove('is-visible');
+        }, 3200);
+      }
+
+      /* ---------- Canvas layout ---------- */
+      function layoutCanvas() {
+        const rect = el.wrap.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width));
+        const height = Math.max(1, Math.round(rect.height));
+        state.viewW = width;
+        state.viewH = height;
+
+        const dpr = Math.min(window.devicePixelRatio || 1, 2.25);
+        const pixelWidth = Math.max(1, Math.round(width * dpr));
+        const pixelHeight = Math.max(1, Math.round(height * dpr));
+
+        if (el.canvas.width !== pixelWidth || el.canvas.height !== pixelHeight) {
+          el.canvas.width = pixelWidth;
+          el.canvas.height = pixelHeight;
+        }
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        if (state.image) {
+          const padding = Math.round(clamp(Math.min(width, height) * 0.055, 20, 48));
+          const availableW = Math.max(1, width - padding * 2);
+          const availableH = Math.max(1, height - padding * 2);
+          const scale = Math.min(availableW / state.imageW, availableH / state.imageH);
+          const drawW = state.imageW * scale;
+          const drawH = state.imageH * scale;
+
+          state.scale = scale;
+          state.display = {
+            x: (width - drawW) / 2,
+            y: (height - drawH) / 2,
+            w: drawW,
+            h: drawH
+          };
+        }
+
+        render();
+      }
+
+      function scheduleRender() {
+        if (renderQueued) return;
+        renderQueued = true;
+        window.requestAnimationFrame(() => {
+          renderQueued = false;
+          render();
+        });
+      }
+
+      function cropInView() {
+        const crop = state.crop;
+        return {
+          x: state.display.x + crop.x * state.scale,
+          y: state.display.y + crop.y * state.scale,
+          w: crop.w * state.scale,
+          h: crop.h * state.scale
+        };
+      }
+
+      function drawBracket(x, y, dx, dy, length) {
+        ctx.beginPath();
+        ctx.moveTo(x + dx * length, y);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x, y + dy * length);
+        ctx.stroke();
+      }
+
+      function render() {
+        ctx.clearRect(0, 0, state.viewW, state.viewH);
+        if (!state.image || !state.crop) return;
+
+        const d = state.display;
+        const c = cropInView();
+
+        ctx.save();
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+        ctx.shadowBlur = 34;
+        ctx.shadowOffsetY = 14;
+        ctx.drawImage(state.image, d.x, d.y, d.w, d.h);
+        ctx.restore();
+
+        // Dim everything outside the locked crop frame.
+        ctx.fillStyle = 'rgba(5, 7, 4, 0.7)';
+        ctx.fillRect(0, 0, state.viewW, c.y);
+        ctx.fillRect(0, c.y, c.x, c.h);
+        ctx.fillRect(c.x + c.w, c.y, state.viewW - c.x - c.w, c.h);
+        ctx.fillRect(0, c.y + c.h, state.viewW, state.viewH - c.y - c.h);
+
+        // A hairline frame keeps the crop edge readable on light photos.
+        ctx.strokeStyle = 'rgba(8, 10, 6, 0.5)';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(c.x, c.y, c.w, c.h);
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.88)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(c.x + 0.5, c.y + 0.5, Math.max(0, c.w - 1), Math.max(0, c.h - 1));
+
+        // Rule-of-thirds guides.
+        if (c.w > 150 && c.h > 90) {
+          ctx.save();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+          ctx.lineWidth = 0.75;
+          ctx.setLineDash([4, 6]);
+          for (let i = 1; i <= 2; i += 1) {
+            ctx.beginPath();
+            ctx.moveTo(c.x + (c.w * i) / 3, c.y);
+            ctx.lineTo(c.x + (c.w * i) / 3, c.y + c.h);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(c.x, c.y + (c.h * i) / 3);
+            ctx.lineTo(c.x + c.w, c.y + (c.h * i) / 3);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // Lime corner grips.
+        const length = clamp(Math.min(c.w, c.h) * 0.16, 12, 23);
+        const corners = [
+          [c.x, c.y, 1, 1],
+          [c.x + c.w, c.y, -1, 1],
+          [c.x + c.w, c.y + c.h, -1, -1],
+          [c.x, c.y + c.h, 1, -1]
+        ];
+
+        ctx.save();
+        ctx.lineCap = 'square';
+        ctx.lineJoin = 'miter';
+        ctx.strokeStyle = 'rgba(7, 10, 5, 0.62)';
+        ctx.lineWidth = 6;
+        for (const [x, y, dx, dy] of corners) drawBracket(x, y, dx, dy, length);
+        ctx.strokeStyle = '#D9FF5E';
+        ctx.lineWidth = 2.7;
+        for (const [x, y, dx, dy] of corners) drawBracket(x, y, dx, dy, length);
+        ctx.restore();
+      }
+
+      /* ---------- Crop state ---------- */
+      function initializeCrop() {
+        const ratioValue = activeRatioValue();
+        let width = Math.min(state.imageW, state.imageH * ratioValue);
+        let height = width / ratioValue;
+
+        if (height > state.imageH) {
+          height = state.imageH;
+          width = height * ratioValue;
+        }
+
+        state.crop = {
+          x: (state.imageW - width) / 2,
+          y: (state.imageH - height) / 2,
+          w: width,
+          h: height
+        };
+      }
+
+      function updateRatioUI() {
+        const buttons = el.ratioGrid.querySelectorAll('[data-ratio]');
+        buttons.forEach((button) => {
+          button.setAttribute('aria-pressed', String(button.dataset.ratio === activeRatioKey));
+        });
+
+        el.ratioBadgeText.textContent = ratioLabel();
+        el.ratioBadge.title = `当前裁剪比例 ${activeRatioKey}`;
+        el.ratioNoteText.textContent = `锁定 ${activeRatioKey} · 拖动四角调整大小`;
+        if (!state.crop) el.cropCoords.textContent = `${ratioLabel()} · 比例已锁定`;
+      }
+
+      function setRatio(key, { announce = true } = {}) {
+        if (!RATIO_OPTIONS[key]) return;
+        const changed = key !== activeRatioKey;
+        if (!changed) {
+          updateRatioUI();
+          return;
+        }
+        activeRatioKey = key;
+
+        if (state.image && state.crop) {
+          const previousAuto = state.autoFilename;
+          const old = state.crop;
+          const centerX = old.x + old.w / 2;
+          const centerY = old.y + old.h / 2;
+          const ratioValue = activeRatioValue();
+
+          // Keep the current center, but expand to the largest frame that fits
+          // the selected ratio. Switching ratios therefore never shrinks the
+          // crop cumulatively.
+          const width = Math.min(state.imageW, state.imageH * ratioValue);
+          const height = width / ratioValue;
+
+          state.crop = {
+            x: clamp(centerX - width / 2, 0, state.imageW - width),
+            y: clamp(centerY - height / 2, 0, state.imageH - height),
+            w: width,
+            h: height
+          };
+
+          if (el.filename.value === previousAuto) {
+            state.autoFilename = defaultName(state.baseName);
+            el.filename.value = state.autoFilename;
+          }
+
+          updateReadouts();
+          render();
+        }
+
+        updateRatioUI();
+        if (changed && announce) showToast(`已切换为 ${activeRatioKey} 画幅。`);
+      }
+
+      function getExportSize() {
+        if (!state.crop) return { w: 0, h: 0 };
+
+        // Snap to a multiple of ratio.w so the saved pixels are an exact
+        // integer aspect ratio, not a rounded approximation.
+        const ratio = activeRatio();
+        const step = ratio.w;
+        let width = Math.max(step, Math.round(state.crop.w / step) * step);
+        let height = (width / ratio.w) * ratio.h;
+
+        const scale = Math.min(
+          1,
+          MAX_EXPORT_SIDE / width,
+          MAX_EXPORT_SIDE / height,
+          Math.sqrt(MAX_EXPORT_PIXELS / (width * height))
+        );
+
+        if (scale < 1) {
+          width = Math.max(step, Math.floor((width * scale) / step) * step);
+          height = (width / ratio.w) * ratio.h;
+        }
+
+        return { w: Math.round(width), h: Math.round(height) };
+      }
+
+      function updateReadouts() {
+        if (!state.crop) {
+          el.cropW.textContent = '—';
+          el.cropH.textContent = '—';
+          el.outputDims.textContent = '—';
+          el.cropCoords.textContent = `${ratioLabel()} · 比例已锁定`;
+          return;
+        }
+
+        const crop = state.crop;
+        const exported = getExportSize();
+        el.cropW.textContent = formatNumber(crop.w);
+        el.cropH.textContent = formatNumber(crop.h);
+        el.outputDims.textContent = `${formatNumber(exported.w)} × ${formatNumber(exported.h)} px`;
+        el.cropCoords.textContent = `${activeRatioKey} · X ${formatNumber(crop.x)} · Y ${formatNumber(crop.y)} · ${formatNumber(crop.w)} × ${formatNumber(crop.h)}`;
+      }
+
+      function updateControls() {
+        const hasImage = Boolean(state.image);
+        document.body.classList.toggle('has-image', hasImage);
+        el.replaceBtn.disabled = !hasImage || state.loading;
+        el.resetBtn.disabled = !hasImage;
+        el.browseBtn.disabled = state.saving || state.browsing || saveMode.kind === 'detecting';
+        el.saveBtn.disabled = !hasImage || state.saving || state.loading || saveMode.kind === 'detecting';
+        el.saveBtn.classList.toggle('is-saving', state.saving);
+        if (state.saving) {
+          el.saveLabel.textContent = '正在保存图片…';
+        } else if (saveMode.kind === 'detecting') {
+          el.saveLabel.textContent = '正在检测保存方式…';
+        } else {
+          el.saveLabel.textContent = '保存到指定位置';
+        }
+      }
+
+      function defaultName(rawName) {
+        const withoutExtension = String(rawName || '照片').replace(/\.[^.]+$/, '');
+        const clean = withoutExtension
+          .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+          .replace(/\s+/g, ' ')
+          .replace(/^[. ]+|[. ]+$/g, '')
+          .slice(0, 52)
+          .trim();
+        return `${clean || '照片'}-${activeRatioKey.replace(':', 'x')}`;
+      }
+
+      function adoptImage(image, width, height, displayName, baseName, isDemo = false) {
+        if (!width || !height) throw new Error('图片尺寸无效');
+
+        if (state.image && typeof state.image.close === 'function') {
+          try { state.image.close(); } catch (error) { /* not fatal */ }
+        }
+
+        state.image = image;
+        state.imageW = width;
+        state.imageH = height;
+        state.displayName = displayName;
+        state.baseName = baseName;
+        state.isDemo = isDemo;
+        state.drag = null;
+        el.saveResult.hidden = true;
+
+        initializeCrop();
+        state.autoFilename = defaultName(baseName);
+        el.fileName.textContent = displayName;
+        el.fileDims.textContent = `${formatNumber(width)} × ${formatNumber(height)} px · ${isDemo ? '示例照片' : '已载入'}`;
+        el.filename.value = state.autoFilename;
+        layoutCanvas();
+        updateReadouts();
+        updateControls();
+        updateFormatUI();
+        updateRatioUI();
+      }
+
+      /* ---------- File loading ---------- */
+      function isImageFile(file) {
+        if (!file) return false;
+        if (file.type && file.type.startsWith('image/')) return true;
+        return /\.(jpe?g|png|webp|avif|gif|bmp)$/i.test(file.name || '');
+      }
+
+      async function decodeImage(file) {
+        if ('createImageBitmap' in window) {
+          try {
+            return await createImageBitmap(file, { imageOrientation: 'from-image' });
+          } catch (firstError) {
+            try {
+              return await createImageBitmap(file);
+            } catch (secondError) {
+              // Fall through to the <img> decoder.
+            }
+          }
+        }
+
+        return await new Promise((resolve, reject) => {
+          const url = URL.createObjectURL(file);
+          const image = new Image();
+          image.onload = () => {
+            URL.revokeObjectURL(url);
+            resolve(image);
+          };
+          image.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('图片解码失败'));
+          };
+          image.src = url;
+        });
+      }
+
+      async function loadFile(file) {
+        if (!file || state.loading) return;
+        if (!isImageFile(file)) {
+          showToast('这不是图片文件。请选择 JPG、PNG 或 WebP 照片。', 'error');
+          return;
+        }
+
+        state.loading = true;
+        updateControls();
+        el.fileName.textContent = '正在读取照片…';
+        el.fileDims.textContent = file.name || '';
+
+        try {
+          const image = await decodeImage(file);
+          const width = image.width || image.naturalWidth;
+          const height = image.height || image.naturalHeight;
+          const baseName = (file.name || '照片').replace(/\.[^.]+$/, '');
+          adoptImage(image, width, height, file.name || '未命名照片', baseName, false);
+          showToast('照片已载入，拖动裁剪框来构图。');
+        } catch (error) {
+          console.error(error);
+          el.fileName.textContent = '等待选择照片';
+          el.fileDims.textContent = '拖动画面上的裁剪框开始构图';
+          showToast('无法读取这张照片，请试试 JPG、PNG 或 WebP 格式。', 'error');
+        } finally {
+          state.loading = false;
+          updateControls();
+        }
+      }
+
+      /* ---------- Demo photo ---------- */
+      function makeDemoPhoto() {
+        const width = 1920;
+        const height = 1280;
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const c = canvas.getContext('2d');
+
+        let seed = 20261108;
+        const random = () => {
+          seed = (seed * 1664525 + 1013904223) >>> 0;
+          return seed / 4294967296;
+        };
+
+        const horizon = height * 0.592;
+
+        const sky = c.createLinearGradient(0, 0, 0, horizon);
+        sky.addColorStop(0, '#839ba1');
+        sky.addColorStop(0.42, '#b8b7a8');
+        sky.addColorStop(0.74, '#e7bd92');
+        sky.addColorStop(1, '#f5d6ab');
+        c.fillStyle = sky;
+        c.fillRect(0, 0, width, horizon + 2);
+
+        const sunX = width * 0.665;
+        const sunY = height * 0.355;
+        const sunRadius = width * 0.057;
+
+        const glow = c.createRadialGradient(sunX, sunY, sunRadius * 0.4, sunX, sunY, width * 0.31);
+        glow.addColorStop(0, 'rgba(255, 226, 172, 0.62)');
+        glow.addColorStop(0.3, 'rgba(255, 193, 121, 0.22)');
+        glow.addColorStop(1, 'rgba(255, 181, 110, 0)');
+        c.fillStyle = glow;
+        c.fillRect(0, 0, width, horizon);
+
+        const disc = c.createLinearGradient(0, sunY - sunRadius, 0, sunY + sunRadius);
+        disc.addColorStop(0, '#fff9dd');
+        disc.addColorStop(1, '#ffd18a');
+        c.fillStyle = disc;
+        c.beginPath();
+        c.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+        c.fill();
+
+        // Soft cloud streaks.
+        c.save();
+        c.globalAlpha = 0.2;
+        c.fillStyle = '#fff2dc';
+        for (let i = 0; i < 9; i += 1) {
+          const cloudY = height * (0.1 + random() * 0.3);
+          const cloudW = width * (0.14 + random() * 0.24);
+          const cloudH = height * (0.006 + random() * 0.014);
+          const cloudX = width * (0.05 + random() * 0.8);
+          c.beginPath();
+          c.ellipse(cloudX, cloudY, cloudW, cloudH, 0, 0, Math.PI * 2);
+          c.fill();
+        }
+        c.restore();
+
+        const ridge = (baseY, peakHeight, color, alpha) => {
+          c.save();
+          c.globalAlpha = alpha;
+          c.fillStyle = color;
+          c.beginPath();
+          c.moveTo(0, baseY + 8);
+          const points = 18;
+          for (let i = 0; i <= points; i += 1) {
+            const x = (width / points) * i;
+            const y = baseY - peakHeight * (0.18 + random() * 0.82);
+            c.lineTo(x, y);
+          }
+          c.lineTo(width, baseY + 8);
+          c.lineTo(width, horizon + 8);
+          c.lineTo(0, horizon + 8);
+          c.closePath();
+          c.fill();
+          c.restore();
+        };
+
+        ridge(horizon - height * 0.055, height * 0.16, '#7d918d', 0.6);
+        ridge(horizon - height * 0.018, height * 0.115, '#586f69', 0.72);
+        ridge(horizon + height * 0.01, height * 0.068, '#344d47', 0.82);
+
+        // Lake.
+        const water = c.createLinearGradient(0, horizon, 0, height * 0.85);
+        water.addColorStop(0, '#d4c6aa');
+        water.addColorStop(0.18, '#9aa99b');
+        water.addColorStop(0.52, '#657f76');
+        water.addColorStop(1, '#2f4b46');
+        c.fillStyle = water;
+        c.fillRect(0, horizon, width, height * 0.85 - horizon);
+
+        // Sun reflection.
+        const reflection = c.createLinearGradient(0, horizon, 0, height * 0.84);
+        reflection.addColorStop(0, 'rgba(255, 231, 174, 0.85)');
+        reflection.addColorStop(0.5, 'rgba(255, 194, 122, 0.28)');
+        reflection.addColorStop(1, 'rgba(255, 180, 104, 0)');
+        c.save();
+        c.translate(sunX, horizon);
+        c.scale(1, 3.2);
+        c.fillStyle = reflection;
+        c.beginPath();
+        c.ellipse(0, 0, width * 0.048, height * 0.065, 0, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+
+        // Fine water ripples.
+        c.save();
+        c.globalAlpha = 0.18;
+        c.strokeStyle = '#f7e3c4';
+        c.lineWidth = 1.3;
+        for (let i = 0; i < 26; i += 1) {
+          const y = horizon + random() * height * 0.2;
+          const x = sunX + (random() - 0.5) * width * (0.12 + random() * 0.32);
+          const span = width * (0.006 + random() * 0.03);
+          c.beginPath();
+          c.moveTo(x - span, y);
+          c.lineTo(x + span, y);
+          c.stroke();
+        }
+        c.restore();
+
+        // Foreground bank.
+        c.fillStyle = '#1e302a';
+        c.beginPath();
+        c.moveTo(0, height * 0.835);
+        for (let i = 0; i <= 16; i += 1) {
+          const x = (width / 16) * i;
+          const y = height * 0.835 + (random() - 0.5) * height * 0.04;
+          c.lineTo(x, y);
+        }
+        c.lineTo(width, height);
+        c.lineTo(0, height);
+        c.closePath();
+        c.fill();
+
+        // Grass silhouettes.
+        c.save();
+        c.strokeStyle = 'rgba(9, 20, 15, 0.72)';
+        c.lineWidth = 1.5;
+        for (let i = 0; i < 90; i += 1) {
+          const x = random() * width;
+          const baseY = height * (0.86 + random() * 0.13);
+          const bladeH = height * (0.012 + random() * 0.055);
+          c.beginPath();
+          c.moveTo(x, baseY);
+          c.quadraticCurveTo(x + (random() - 0.5) * 16, baseY - bladeH * 0.6, x + (random() - 0.5) * 26, baseY - bladeH);
+          c.stroke();
+        }
+        c.restore();
+
+        // Distant birds.
+        c.save();
+        c.strokeStyle = 'rgba(47, 54, 49, 0.55)';
+        c.lineWidth = 1.6;
+        c.lineCap = 'round';
+        const birds = [[0.31, 0.23], [0.35, 0.20], [0.39, 0.24]];
+        for (const [bx, by] of birds) {
+          const x = width * bx;
+          const y = height * by;
+          c.beginPath();
+          c.moveTo(x - 9, y);
+          c.quadraticCurveTo(x - 4, y - 5, x, y);
+          c.quadraticCurveTo(x + 4, y - 5, x + 9, y);
+          c.stroke();
+        }
+        c.restore();
+
+        // Vignette.
+        const vignette = c.createRadialGradient(width * 0.5, height * 0.48, width * 0.19, width * 0.5, height * 0.48, width * 0.72);
+        vignette.addColorStop(0, 'rgba(13, 18, 14, 0)');
+        vignette.addColorStop(0.78, 'rgba(13, 18, 14, 0.1)');
+        vignette.addColorStop(1, 'rgba(8, 12, 9, 0.36)');
+        c.fillStyle = vignette;
+        c.fillRect(0, 0, width, height);
+
+        // Film grain.
+        const pixels = c.getImageData(0, 0, width, height);
+        const data = pixels.data;
+        for (let i = 0; i < data.length; i += 4) {
+          const grain = (random() - 0.5) * 13;
+          data[i] = clamp(data[i] + grain, 0, 255);
+          data[i + 1] = clamp(data[i + 1] + grain, 0, 255);
+          data[i + 2] = clamp(data[i + 2] + grain, 0, 255);
+        }
+        c.putImageData(pixels, 0, 0);
+
+        return { canvas, width, height };
+      }
+
+      function loadDemo() {
+        if (state.loading) return;
+        try {
+          const demo = makeDemoPhoto();
+          adoptImage(demo.canvas, demo.width, demo.height, '示例照片 · 暮色山谷', '暮色山谷', true);
+          showToast('示例照片已载入，可以随意拖动裁剪框。');
+        } catch (error) {
+          console.error(error);
+          showToast('示例图生成失败，请直接选择一张照片。', 'error');
+        }
+      }
+
+      /* ---------- Pointer interaction ---------- */
+      function eventPoint(event) {
+        const rect = el.canvas.getBoundingClientRect();
+        return {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+      }
+
+      function hitTest(point) {
+        if (!state.crop) return null;
+        const c = cropInView();
+        const corners = [
+          ['nw', c.x, c.y],
+          ['ne', c.x + c.w, c.y],
+          ['se', c.x + c.w, c.y + c.h],
+          ['sw', c.x, c.y + c.h]
+        ];
+
+        // Corners win over the move area so they remain easy to grab.
+        for (const [name, x, y] of corners) {
+          if (Math.hypot(point.x - x, point.y - y) <= HANDLE_HIT) return name;
+        }
+
+        if (point.x >= c.x && point.x <= c.x + c.w && point.y >= c.y && point.y <= c.y + c.h) {
+          return 'move';
+        }
+        return null;
+      }
+
+      function cursorFor(hit) {
+        if (hit === 'move') return 'grab';
+        if (hit === 'nw' || hit === 'se') return 'nwse-resize';
+        if (hit === 'ne' || hit === 'sw') return 'nesw-resize';
+        return 'default';
+      }
+
+      function updateHoverCursor(point) {
+        if (!state.image) {
+          el.canvas.style.cursor = 'default';
+          return;
+        }
+        const hit = hitTest(point);
+        el.canvas.style.cursor = cursorFor(hit);
+      }
+
+      function moveCropBy(dx, dy) {
+        if (!state.crop) return;
+        state.crop.x = clamp(state.crop.x + dx, 0, state.imageW - state.crop.w);
+        state.crop.y = clamp(state.crop.y + dy, 0, state.imageH - state.crop.h);
+      }
+
+      function resizeFromPointer(mode, point) {
+        if (!state.drag || !state.crop) return;
+        const start = state.drag.startCrop;
+        const sx = mode.includes('e') ? 1 : -1;
+        const sy = mode.includes('s') ? 1 : -1;
+
+        const anchorX = sx > 0 ? start.x : start.x + start.w;
+        const anchorY = sy > 0 ? start.y : start.y + start.h;
+        const targetX = (point.x - state.display.x) / state.scale;
+        const targetY = (point.y - state.display.y) / state.scale;
+
+        const ratioValue = activeRatioValue();
+        const directionX = sx;
+        const directionY = sy / ratioValue;
+        const denominator = 1 + 1 / (ratioValue * ratioValue);
+        let width = ((targetX - anchorX) * directionX + (targetY - anchorY) * directionY) / denominator;
+
+        const maxWidthX = sx > 0 ? state.imageW - anchorX : anchorX;
+        const maxWidthY = sy > 0 ? (state.imageH - anchorY) * ratioValue : anchorY * ratioValue;
+        const maxWidth = Math.min(maxWidthX, maxWidthY);
+        const minWidth = Math.max(16, MIN_CROP_SCREEN / Math.max(state.scale, 0.0001));
+
+        width = clamp(width, Math.min(minWidth, maxWidth), maxWidth);
+        width = Math.max(1, width);
+
+        const height = width / ratioValue;
+        state.crop = {
+          x: sx > 0 ? anchorX : anchorX - width,
+          y: sy > 0 ? anchorY : anchorY - height,
+          w: width,
+          h: height
+        };
+      }
+
+      el.canvas.addEventListener('pointerdown', (event) => {
+        if (!state.image || !state.crop || event.button !== 0) return;
+        if (state.drag) return;
+
+        const point = eventPoint(event);
+        const hit = hitTest(point);
+        if (!hit) return;
+
+        event.preventDefault();
+        state.drag = {
+          mode: hit,
+          pointerId: event.pointerId,
+          startX: point.x,
+          startY: point.y,
+          startCrop: { ...state.crop }
+        };
+
+        try { el.canvas.setPointerCapture(event.pointerId); } catch (error) { /* synthetic pointers */ }
+        el.canvas.style.cursor = hit === 'move' ? 'grabbing' : cursorFor(hit);
+      });
+
+      el.canvas.addEventListener('pointermove', (event) => {
+        if (!state.image) return;
+        const point = eventPoint(event);
+
+        if (!state.drag) {
+          updateHoverCursor(point);
+          return;
+        }
+
+        if (event.pointerId !== state.drag.pointerId) return;
+        event.preventDefault();
+
+        if (state.drag.mode === 'move') {
+          const dx = (point.x - state.drag.startX) / state.scale;
+          const dy = (point.y - state.drag.startY) / state.scale;
+          state.crop = { ...state.drag.startCrop };
+          moveCropBy(dx, dy);
+        } else {
+          resizeFromPointer(state.drag.mode, point);
+        }
+
+        updateReadouts();
+        scheduleRender();
+      });
+
+      function endDrag(event) {
+        if (!state.drag) return;
+        if (event && event.pointerId !== undefined && event.pointerId !== state.drag.pointerId) return;
+
+        state.drag = null;
+        try {
+          if (event && el.canvas.hasPointerCapture(event.pointerId)) {
+            el.canvas.releasePointerCapture(event.pointerId);
+          }
+        } catch (error) { /* not fatal */ }
+
+        if (event) updateHoverCursor(eventPoint(event));
+        updateReadouts();
+        render();
+      }
+
+      el.canvas.addEventListener('pointerup', endDrag);
+      el.canvas.addEventListener('pointercancel', endDrag);
+      el.canvas.addEventListener('lostpointercapture', () => {
+        if (state.drag) {
+          state.drag = null;
+          updateReadouts();
+          render();
+        }
+      });
+
+      el.canvas.addEventListener('pointerleave', () => {
+        if (!state.drag) el.canvas.style.cursor = 'default';
+      });
+
+      el.canvas.addEventListener('keydown', (event) => {
+        if (!state.image || !state.crop) return;
+        const stepPixels = event.shiftKey ? 20 : 3;
+        const step = stepPixels / state.scale;
+        let handled = true;
+
+        switch (event.key) {
+          case 'ArrowLeft': moveCropBy(-step, 0); break;
+          case 'ArrowRight': moveCropBy(step, 0); break;
+          case 'ArrowUp': moveCropBy(0, -step); break;
+          case 'ArrowDown': moveCropBy(0, step); break;
+          default: handled = false;
+        }
+
+        if (handled) {
+          event.preventDefault();
+          updateReadouts();
+          scheduleRender();
+        }
+      });
+
+      /* ---------- Controls ---------- */
+      function openFilePicker() {
+        if (state.loading) return;
+        el.fileInput.click();
+      }
+
+      el.dropCard.addEventListener('click', openFilePicker);
+      el.dropCard.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openFilePicker();
+        }
+      });
+
+      el.replaceBtn.addEventListener('click', openFilePicker);
+      el.demoBtn.addEventListener('click', loadDemo);
+      el.fileInput.addEventListener('change', () => {
+        const file = el.fileInput.files && el.fileInput.files[0];
+        el.fileInput.value = '';
+        if (file) loadFile(file);
+      });
+
+      el.ratioGrid.addEventListener('click', (event) => {
+        const button = event.target.closest('[data-ratio]');
+        if (button) setRatio(button.dataset.ratio);
+      });
+
+      el.resetBtn.addEventListener('click', () => {
+        if (!state.image) return;
+        initializeCrop();
+        updateReadouts();
+        render();
+        showToast(`已恢复为画面中最大的 ${activeRatioKey} 裁剪框。`);
+      });
+
+      /* ---------- Format and save ---------- */
+      const formatMap = {
+        jpeg: { mime: 'image/jpeg', extension: 'jpg' },
+        png: { mime: 'image/png', extension: 'png' },
+        webp: { mime: 'image/webp', extension: 'webp' }
+      };
+
+      function updateFormatUI() {
+        const format = formatMap[el.format.value] || formatMap.jpeg;
+        el.extension.textContent = `.${format.extension}`;
+        el.qualityValue.textContent = `${el.quality.value}%`;
+        const isQualityless = el.format.value === 'png';
+        el.qualityField.classList.toggle('is-disabled', isQualityless);
+        el.quality.disabled = isQualityless;
+        if (isQualityless) el.qualityValue.textContent = '无损';
+      }
+
+      el.format.addEventListener('change', updateFormatUI);
+      el.quality.addEventListener('input', () => {
+        el.qualityValue.textContent = `${el.quality.value}%`;
+      });
+
+      function readLocalSetting(key) {
+        try { return window.localStorage.getItem(key) || ''; } catch (error) { return ''; }
+      }
+
+      function writeLocalSetting(key, value) {
+        try {
+          if (value) window.localStorage.setItem(key, value);
+        } catch (error) { /* storage may be unavailable */ }
+      }
+
+      function updateSaveModeUI() {
+        const kind = saveMode.kind;
+        el.modeBadge.classList.toggle('is-server', kind === 'server');
+        el.modeBadge.classList.toggle('is-file', kind !== 'server' && kind !== 'detecting');
+        el.saveModeChip.classList.toggle('is-server', kind === 'server');
+        el.saveModeChip.classList.toggle('is-browser', kind !== 'server' && kind !== 'detecting');
+        el.pathField.classList.toggle('is-file-mode', kind !== 'server');
+        el.savePath.readOnly = kind !== 'server';
+        el.openFolderBtn.hidden = kind !== 'server';
+
+        if (kind === 'server') {
+          el.modeText.textContent = '本地服务 · 可保存到指定文件夹';
+          el.saveModeChip.textContent = '直接保存';
+          el.pathLabel.textContent = '保存文件夹';
+          el.browseBtn.hidden = false;
+          el.browseBtn.textContent = '浏览…';
+          el.pathHelp.textContent = '可填写或浏览选择文件夹；不存在时会自动创建。';
+          if (!el.savePath.value && saveMode.defaultDir) el.savePath.value = saveMode.defaultDir;
+          el.savePath.placeholder = '例如 C:\\Users\\你\\Pictures\\裁切';
+        } else if (kind === 'fs-directory') {
+          el.modeText.textContent = '浏览器模式 · 直接写入文件夹';
+          el.saveModeChip.textContent = '本地直写';
+          el.pathLabel.textContent = '保存文件夹';
+          el.browseBtn.hidden = false;
+          el.browseBtn.textContent = '选择…';
+          el.pathHelp.textContent = '点“选择”或直接保存，选择一个文件夹后写入，不经过浏览器下载。';
+          el.savePath.value = saveMode.directoryName ? `已选择文件夹：${saveMode.directoryName}` : '';
+          el.savePath.placeholder = '点“选择”指定保存文件夹';
+        } else if (kind === 'fs-save') {
+          el.modeText.textContent = '浏览器模式 · 另存为';
+          el.saveModeChip.textContent = '另存为';
+          el.pathLabel.textContent = '保存位置';
+          el.browseBtn.hidden = true;
+          el.pathHelp.textContent = '保存时会弹出系统“另存为”窗口，可自行选择地址和文件名。';
+          el.savePath.value = '保存时弹出系统窗口';
+        } else if (kind === 'download') {
+          el.modeText.textContent = '兼容模式 · 浏览器下载';
+          el.saveModeChip.textContent = '兼容模式';
+          el.pathLabel.textContent = '保存位置';
+          el.browseBtn.hidden = true;
+          el.pathHelp.textContent = '当前浏览器不支持直接写入。建议双击“启动裁切工坊.bat”后再打开。';
+          el.savePath.value = '浏览器下载目录';
+        } else {
+          el.modeText.textContent = '正在检测保存方式…';
+          el.saveModeChip.textContent = '检测中';
+          el.pathLabel.textContent = '保存文件夹';
+          el.browseBtn.hidden = false;
+          el.pathHelp.textContent = '正在检测本地保存方式…';
+        }
+
+        el.savePath.setAttribute('aria-invalid', 'false');
+        updateControls();
+      }
+
+      async function detectSaveMode() {
+        let serverInfo = null;
+
+        if (location.protocol === 'http:' || location.protocol === 'https:') {
+          try {
+            const response = await fetch('/api/info', {
+              cache: 'no-store',
+              headers: { Accept: 'application/json' }
+            });
+            if (response.ok) {
+              const data = await response.json();
+              if (data && data.app === 'ratio-crop-studio') serverInfo = data;
+            }
+          } catch (error) {
+            // A static host or direct file open will simply use the browser path.
+          }
+        }
+
+        if (serverInfo) {
+          saveMode.kind = 'server';
+          saveMode.server = true;
+          saveMode.defaultDir = serverInfo.defaultDir || '';
+          saveMode.lastSavedDir = serverInfo.lastSaveDir || '';
+          const remembered = readLocalSetting('ratio-crop-save-dir');
+          el.savePath.value = remembered || serverInfo.lastSaveDir || serverInfo.defaultDir || '';
+          updateSaveModeUI();
+          return;
+        }
+
+        if ('showDirectoryPicker' in window) {
+          saveMode.kind = 'fs-directory';
+        } else if ('showSaveFilePicker' in window) {
+          saveMode.kind = 'fs-save';
+        } else {
+          saveMode.kind = 'download';
+        }
+        updateSaveModeUI();
+      }
+
+      async function browseViaServer() {
+        if (state.browsing || saveMode.kind !== 'server') return;
+        state.browsing = true;
+        updateControls();
+        el.pathField.classList.add('is-busy');
+        el.browseBtn.textContent = '选择中…';
+        el.pathHelp.textContent = '已打开系统文件夹选择窗口，请在弹出的窗口中选择…';
+
+        try {
+          const response = await fetch('/api/browse-folder', { method: 'POST' });
+          let data = {};
+          try { data = await response.json(); } catch (error) { /* non-json error */ }
+          if (!response.ok) throw new Error(data.error || '无法打开文件夹选择窗口。');
+          if (data.canceled) return;
+          if (data.path) {
+            el.savePath.value = data.path;
+            el.savePath.setAttribute('aria-invalid', 'false');
+            writeLocalSetting('ratio-crop-save-dir', data.path);
+            showToast('已选择保存文件夹。');
+          }
+        } catch (error) {
+          showToast(error.message || '选择文件夹失败。', 'error');
+        } finally {
+          state.browsing = false;
+          el.pathField.classList.remove('is-busy');
+          updateSaveModeUI();
+        }
+      }
+
+      async function pickDirectoryHandle() {
+        if (!('showDirectoryPicker' in window)) {
+          throw new Error('当前浏览器不支持选择文件夹，请改用启动器打开。');
+        }
+        const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+        saveMode.kind = 'fs-directory';
+        saveMode.directoryHandle = handle;
+        saveMode.directoryName = handle.name;
+        updateSaveModeUI();
+        return handle;
+      }
+
+      async function chooseBrowserFolder() {
+        if (state.browsing) return;
+        if (saveMode.kind === 'fs-save' || saveMode.kind === 'download') {
+          showToast('当前模式会在保存时弹出系统窗口。');
+          return;
+        }
+        state.browsing = true;
+        updateControls();
+        try {
+          const handle = await pickDirectoryHandle();
+          showToast(`已选择文件夹：${handle.name}`);
+        } catch (error) {
+          if (error.name !== 'AbortError') {
+            showToast(error.message || '选择文件夹失败。', 'error');
+          }
+        } finally {
+          state.browsing = false;
+          updateControls();
+        }
+      }
+
+      function chooseFolder() {
+        if (saveMode.kind === 'server') browseViaServer();
+        else chooseBrowserFolder();
+      }
+
+      function splitFileName(fileName) {
+        const dot = fileName.lastIndexOf('.');
+        if (dot <= 0) return { base: fileName, extension: '' };
+        return { base: fileName.slice(0, dot), extension: fileName.slice(dot) };
+      }
+
+      async function directoryHasFile(handle, fileName) {
+        try {
+          await handle.getFileHandle(fileName);
+          return true;
+        } catch (error) {
+          if (error.name === 'NotFoundError') return false;
+          throw error;
+        }
+      }
+
+      async function uniqueFileName(handle, fileName) {
+        if (!(await directoryHasFile(handle, fileName))) return fileName;
+        const parts = splitFileName(fileName);
+        for (let index = 2; index < 1000; index += 1) {
+          const candidate = `${parts.base} (${index})${parts.extension}`;
+          if (!(await directoryHasFile(handle, candidate))) return candidate;
+        }
+        return `${parts.base} (${Date.now()})${parts.extension}`;
+      }
+
+      async function ensureDirectoryPermission(handle) {
+        if (!handle) return false;
+        if (typeof handle.queryPermission !== 'function') return true;
+        const options = { mode: 'readwrite' };
+        if ((await handle.queryPermission(options)) === 'granted') return true;
+        if (typeof handle.requestPermission !== 'function') return false;
+        return (await handle.requestPermission(options)) === 'granted';
+      }
+
+      async function saveIntoDirectory(handle, blob, fileName) {
+        if (!(await ensureDirectoryPermission(handle))) {
+          throw new Error('没有写入权限，请重新选择保存文件夹。');
+        }
+        const finalName = await uniqueFileName(handle, fileName);
+        const fileHandle = await handle.getFileHandle(finalName, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return finalName;
+      }
+
+      async function saveWithPicker(blob, fileName, extension, mime) {
+        if (!('showSaveFilePicker' in window)) throw new Error('当前浏览器不支持“另存为”窗口。');
+        const descriptions = { jpg: 'JPEG 图片', png: 'PNG 图片', webp: 'WebP 图片' };
+        let handle;
+        try {
+          handle = await window.showSaveFilePicker({
+            suggestedName: fileName,
+            types: [{
+              description: descriptions[extension] || '图片',
+              accept: { [mime]: [`.${extension}`] }
+            }]
+          });
+        } catch (error) {
+          if (error.name === 'AbortError') throw error;
+          handle = await window.showSaveFilePicker({ suggestedName: fileName });
+        }
+        const writable = await handle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+        return handle.name;
+      }
+
+      async function saveViaServer(blob, fileName) {
+        let directory = el.savePath.value.trim();
+        if (!directory) directory = saveMode.defaultDir || '';
+        if (!directory) {
+          el.savePath.focus();
+          el.savePath.setAttribute('aria-invalid', 'true');
+          throw new Error('请先填写保存文件夹。');
+        }
+
+        const params = new URLSearchParams({ dir: directory, filename: fileName });
+        const response = await fetch(`/api/save?${params.toString()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': blob.type || 'application/octet-stream' },
+          body: blob
+        });
+
+        let data = {};
+        try { data = await response.json(); } catch (error) { /* non-json error */ }
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || `保存失败（HTTP ${response.status}）。`);
+        }
+
+        if (data.dir) {
+          el.savePath.value = data.dir;
+          el.savePath.setAttribute('aria-invalid', 'false');
+          writeLocalSetting('ratio-crop-save-dir', data.dir);
+          saveMode.lastSavedDir = data.dir;
+        }
+        saveMode.lastSavedPath = data.path || '';
+        return data;
+      }
+
+      function showSaveResult(label, canOpenFolder) {
+        el.saveResult.hidden = false;
+        el.saveResultPath.textContent = label;
+        el.openFolderBtn.hidden = !canOpenFolder;
+      }
+
+      function makeDownloadName(extension) {
+        const raw = el.filename.value.trim();
+        let base = raw
+          .replace(/[\\/:*?"<>|\u0000-\u001f]/g, '-')
+          .replace(/\s+/g, ' ')
+          .replace(/\.(jpe?g|png|webp)$/i, '')
+          .replace(/^[. ]+|[. ]+$/g, '')
+          .slice(0, 80)
+          .trim();
+
+        if (!base) base = defaultName(state.baseName);
+        return `${base}.${extension}`;
+      }
+
+      async function createExportBlob(format) {
+        const exported = getExportSize();
+        const output = document.createElement('canvas');
+        output.width = exported.w;
+        output.height = exported.h;
+        const outputContext = output.getContext('2d');
+        if (!outputContext) throw new Error('浏览器无法创建导出画布，请刷新后重试。');
+
+        if (format.mime === 'image/jpeg') {
+          outputContext.fillStyle = '#ffffff';
+          outputContext.fillRect(0, 0, output.width, output.height);
+        }
+
+        outputContext.imageSmoothingEnabled = true;
+        outputContext.imageSmoothingQuality = 'high';
+        outputContext.drawImage(
+          state.image,
+          state.crop.x,
+          state.crop.y,
+          state.crop.w,
+          state.crop.h,
+          0,
+          0,
+          output.width,
+          output.height
+        );
+
+        const quality = el.format.value === 'png' ? undefined : Number(el.quality.value) / 100;
+        const blob = await new Promise((resolve, reject) => {
+          output.toBlob((result) => {
+            if (result) resolve(result);
+            else reject(new Error('生成图片失败，请换一种格式试试。'));
+          }, format.mime, quality);
+        });
+
+        return blob;
+      }
+
+      async function openSavedFolder() {
+        if (!saveMode.server || !saveMode.lastSavedPath) return;
+        el.openFolderBtn.disabled = true;
+        try {
+          const response = await fetch('/api/open-folder', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: saveMode.lastSavedPath })
+          });
+          let data = {};
+          try { data = await response.json(); } catch (error) { /* non-json error */ }
+          if (!response.ok || !data.ok) throw new Error(data.error || '无法打开文件夹。');
+        } catch (error) {
+          showToast(error.message || '打开文件夹失败。', 'error');
+        } finally {
+          el.openFolderBtn.disabled = false;
+        }
+      }
+
+      async function saveImage() {
+        if (!state.image || !state.crop || state.saving || state.loading) return;
+        if (saveMode.kind === 'detecting') {
+          showToast('正在检测保存方式，请稍等一下。');
+          return;
+        }
+
+        state.saving = true;
+        el.saveResult.hidden = true;
+        updateControls();
+
+        try {
+          let preparedDirectory = null;
+          if (saveMode.kind === 'fs-directory') {
+            preparedDirectory = saveMode.directoryHandle;
+            if (!preparedDirectory) {
+              try {
+                // Ask for the folder before encoding a potentially large image,
+                // so the browser still treats this as a direct user gesture.
+                preparedDirectory = await pickDirectoryHandle();
+              } catch (error) {
+                if (error.name === 'AbortError') throw error;
+                if ('showSaveFilePicker' in window) {
+                  saveMode.kind = 'fs-save';
+                  updateSaveModeUI();
+                } else {
+                  throw error;
+                }
+              }
+            }
+          }
+
+          const format = formatMap[el.format.value] || formatMap.jpeg;
+          const blob = await createExportBlob(format);
+          let actualExtension = format.extension;
+          let actualMime = format.mime;
+          let extraMessage = '';
+
+          if (format.mime === 'image/webp' && blob.type !== 'image/webp') {
+            actualExtension = 'png';
+            actualMime = 'image/png';
+            extraMessage = '（当前浏览器不支持 WebP，已自动保存为 PNG）';
+          }
+
+          const fileName = makeDownloadName(actualExtension);
+
+          if (saveMode.kind === 'server') {
+            const data = await saveViaServer(blob, fileName);
+            const savedName = data.filename || fileName;
+            if (data.renamed) extraMessage += '（同名文件已存在，已自动改名）';
+            showSaveResult(data.path || savedName, true);
+            showToast(`已保存「${savedName}」到指定文件夹${extraMessage}`);
+          } else if (saveMode.kind === 'fs-directory') {
+            const handle = preparedDirectory || saveMode.directoryHandle;
+            if (!handle) throw new Error('请先选择保存文件夹。');
+            const savedName = await saveIntoDirectory(handle, blob, fileName);
+            showSaveResult(`${saveMode.directoryName || '所选文件夹'} / ${savedName}`, false);
+            showToast(`已保存「${savedName}」到所选文件夹${extraMessage}`);
+          } else if (saveMode.kind === 'fs-save') {
+            const savedName = await saveWithPicker(blob, fileName, actualExtension, actualMime);
+            showSaveResult(savedName, false);
+            showToast(`已保存「${savedName}」${extraMessage}`);
+          } else {
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+            showSaveResult(fileName, false);
+            showToast(`当前为兼容模式，已交给浏览器下载「${fileName}」${extraMessage}`);
+          }
+        } catch (error) {
+          if (error.name === 'AbortError') {
+            showToast('已取消保存。');
+          } else {
+            console.error(error);
+            showToast(error.message || '保存失败，请重试。', 'error');
+          }
+        } finally {
+          state.saving = false;
+          updateControls();
+        }
+      }
+
+      el.browseBtn.addEventListener('click', chooseFolder);
+      el.openFolderBtn.addEventListener('click', openSavedFolder);
+      el.saveBtn.addEventListener('click', saveImage);
+      el.filename.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && state.image) {
+          event.preventDefault();
+          saveImage();
+        }
+      });
+
+      el.savePath.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !el.savePath.readOnly && state.image) {
+          event.preventDefault();
+          saveImage();
+        }
+      });
+
+      window.addEventListener('keydown', (event) => {
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
+          if (!state.image) return;
+          event.preventDefault();
+          saveImage();
+        }
+      });
+
+      /* ---------- Drag and drop ---------- */
+      function hasDraggedFiles(event) {
+        const types = event.dataTransfer && event.dataTransfer.types;
+        return Boolean(types && Array.from(types).includes('Files'));
+      }
+
+      window.addEventListener('dragenter', (event) => {
+        if (!hasDraggedFiles(event)) return;
+        event.preventDefault();
+        dragDepth += 1;
+        el.dropOverlay.classList.add('is-active');
+      });
+
+      window.addEventListener('dragover', (event) => {
+        if (!hasDraggedFiles(event)) return;
+        event.preventDefault();
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+      });
+
+      window.addEventListener('dragleave', (event) => {
+        if (!hasDraggedFiles(event)) return;
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) el.dropOverlay.classList.remove('is-active');
+      });
+
+      window.addEventListener('drop', (event) => {
+        if (!hasDraggedFiles(event)) return;
+        event.preventDefault();
+        dragDepth = 0;
+        el.dropOverlay.classList.remove('is-active');
+        const file = event.dataTransfer.files && event.dataTransfer.files[0];
+        if (file) loadFile(file);
+      });
+
+      /* ---------- Startup ---------- */
+      if ('ResizeObserver' in window) {
+        const observer = new ResizeObserver(() => layoutCanvas());
+        observer.observe(el.wrap);
+      } else {
+        window.addEventListener('resize', layoutCanvas);
+      }
+      window.addEventListener('resize', layoutCanvas);
+
+      updateRatioUI();
+      updateFormatUI();
+      updateControls();
+      updateReadouts();
+      detectSaveMode();
+      window.requestAnimationFrame(layoutCanvas);
+
+      // A tiny read-only hook, useful for automated checks and future embedding.
+      window.__CROP169__ = {
+        getState: () => ({
+          hasImage: Boolean(state.image),
+          imageWidth: state.imageW,
+          imageHeight: state.imageH,
+          crop: state.crop ? { ...state.crop } : null,
+          ratio: activeRatioKey,
+          exportSize: getExportSize(),
+          displayName: state.displayName,
+          saveMode: saveMode.kind,
+          savePath: el.savePath.value
+        }),
+        loadDemo
+      };
+    })();
+  </script>
+</body>
+</html>
